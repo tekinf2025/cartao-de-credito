@@ -102,34 +102,21 @@ var CartaoGerenciamento = () => {
         const dataRecebimento = /* @__PURE__ */ new Date();
         dataRecebimento.setDate(dataRecebimento.getDate() + 30);
         const lancamento = {
+          id: Date.now().toString(),
+          // Gerar ID único baseado em timestamp
           estabelecimento: novoLancamento.estabelecimento,
           bandeira: novoLancamento.bandeira,
           valor_liquido: parseFloat(valorLiquido.toFixed(2)),
-          tipo_pagamento: "\xC0 Vista",
           data_pagamento: dataRecebimento.toISOString().split("T")[0],
           status: novoLancamento.status
         };
         console.log("Inserindo lan\xE7amento \xE0 vista (sem ID):", lancamento);
-        const { data, error: error2 } = await supabase.from("cartao_lancamentos").upsert([lancamento], {
-          onConflict: "id",
-          ignoreDuplicates: false
-        }).select();
+        const { data, error: error2 } = await supabase.from("cartao_lancamentos").insert([lancamento]).select();
         if (error2) {
-          console.error("Erro ao fazer upsert do lan\xE7amento:", error2);
-          const lancamentoComTimestamp = {
-            ...lancamento,
-            estabelecimento: `${lancamento.estabelecimento}_${Date.now()}`
-          };
-          console.log("Tentando inser\xE7\xE3o com timestamp \xFAnico...");
-          const { data: data2, error: error22 } = await supabase.from("cartao_lancamentos").insert([lancamentoComTimestamp]).select();
-          if (error22) {
-            console.error("Erro na inser\xE7\xE3o com timestamp:", error22);
-            throw error22;
-          }
-          console.log("Lan\xE7amento inserido com timestamp \xFAnico:", data2);
-        } else {
-          console.log("Lan\xE7amento inserido/atualizado com sucesso:", data);
+          console.error("Erro ao inserir lan\xE7amento:", error2);
+          throw error2;
         }
+        console.log("Lan\xE7amento inserido com sucesso:", data);
         console.log("Lan\xE7amento inserido com sucesso:", data);
       } else if (novoLancamento.tipo_pagamento === "credito_parcelado") {
         const valorLiquidoPorParcela = calcularValorLiquido(valorBruto, "credito_parcelado", novoLancamento.parcelas);
@@ -138,33 +125,19 @@ var CartaoGerenciamento = () => {
           const dataRecebimento = /* @__PURE__ */ new Date();
           dataRecebimento.setDate(dataRecebimento.getDate() + 30 * i);
           const lancamento = {
+            id: `${Date.now()}_${i}`,
+            // Gerar ID único para cada parcela
             estabelecimento: novoLancamento.estabelecimento,
             bandeira: `${novoLancamento.bandeira} ${String(i).padStart(2, "0")}/${String(novoLancamento.parcelas).padStart(2, "0")}`,
             valor_liquido: parseFloat(valorLiquidoPorParcela.toFixed(2)),
-            tipo_pagamento: "Parcelado",
             data_pagamento: dataRecebimento.toISOString().split("T")[0],
             status: novoLancamento.status
           };
           console.log(`Inserindo parcela ${i}/${novoLancamento.parcelas} (sem ID):`, lancamento);
-          const { data, error: error2 } = await supabase.from("cartao_lancamentos").upsert([lancamento], {
-            onConflict: "id",
-            ignoreDuplicates: false
-          }).select();
+          const { data, error: error2 } = await supabase.from("cartao_lancamentos").insert([lancamento]).select();
           if (error2) {
-            console.error(`Erro ao fazer upsert da parcela ${i}:`, error2);
-            const lancamentoComTimestamp = {
-              ...lancamento,
-              estabelecimento: `${lancamento.estabelecimento}_${Date.now()}_${i}`
-            };
-            console.log(`Tentando inser\xE7\xE3o da parcela ${i} com timestamp \xFAnico...`);
-            const { data: data2, error: error22 } = await supabase.from("cartao_lancamentos").insert([lancamentoComTimestamp]).select();
-            if (error22) {
-              console.error(`Erro na inser\xE7\xE3o da parcela ${i} com timestamp:`, error22);
-              throw error22;
-            }
-            console.log(`Parcela ${i} inserida com timestamp \xFAnico:`, data2);
-          } else {
-            console.log(`Parcela ${i} inserida/atualizada com sucesso:`, data);
+            console.error(`Erro ao inserir parcela ${i}:`, error2);
+            throw error2;
           }
           console.log(`Parcela ${i} inserida com sucesso:`, data);
           if (i < novoLancamento.parcelas) {
