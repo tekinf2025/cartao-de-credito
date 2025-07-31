@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://ivumtyhdkjurerknjnpt.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHVjcGplb2N5aHFkbmx6Z2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxOTc1NzMsImV4cCI6MjA2ODc3MzU3M30.MI9Mb6RdaGUuBrwmkzuWWiGtCtCbQxTcPoGf_uPLJXM';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2dW10eWhka2p1cmVya25qbnB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjUyMjMsImV4cCI6MjA2NTk0MTIyM30.rbkqMbSYczGbJdGSjUvARGLIU3Gf-B9q0RWm0vW99Bs';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -137,50 +137,28 @@ const CartaoGerenciamento = () => {
         dataRecebimento.setDate(dataRecebimento.getDate() + 30);
 
         const lancamento = {
+          id: Date.now().toString(), // Gerar ID único baseado em timestamp
           estabelecimento: novoLancamento.estabelecimento,
           bandeira: novoLancamento.bandeira,
           valor_liquido: parseFloat(valorLiquido.toFixed(2)),
-          tipo_pagamento: 'À Vista',
           data_pagamento: dataRecebimento.toISOString().split('T')[0],
           status: novoLancamento.status
         };
 
         console.log('Inserindo lançamento à vista (sem ID):', lancamento);
         
-        // Tentar upsert para evitar conflito de chave primária
+        // Inserir diretamente sem especificar ID
         const { data, error } = await supabase
           .from('cartao_lancamentos')
-          .upsert([lancamento], { 
-            onConflict: 'id',
-            ignoreDuplicates: false 
-          })
+          .insert([lancamento])
           .select();
 
         if (error) {
-          console.error('Erro ao fazer upsert do lançamento:', error);
-          
-          // Se ainda der erro, tentar inserção simples com timestamp único
-          const lancamentoComTimestamp = {
-            ...lancamento,
-            estabelecimento: `${lancamento.estabelecimento}_${Date.now()}`
-          };
-          
-          console.log('Tentando inserção com timestamp único...');
-          
-          const { data: data2, error: error2 } = await supabase
-            .from('cartao_lancamentos')
-            .insert([lancamentoComTimestamp])
-            .select();
-
-          if (error2) {
-            console.error('Erro na inserção com timestamp:', error2);
-            throw error2;
-          }
-          
-          console.log('Lançamento inserido com timestamp único:', data2);
-        } else {
-          console.log('Lançamento inserido/atualizado com sucesso:', data);
+          console.error('Erro ao inserir lançamento:', error);
+          throw error;
         }
+        
+        console.log('Lançamento inserido com sucesso:', data);
         
         console.log('Lançamento inserido com sucesso:', data);
         
@@ -195,49 +173,25 @@ const CartaoGerenciamento = () => {
           dataRecebimento.setDate(dataRecebimento.getDate() + (30 * i));
 
           const lancamento = {
+            id: `${Date.now()}_${i}`, // Gerar ID único para cada parcela
             estabelecimento: novoLancamento.estabelecimento,
             bandeira: `${novoLancamento.bandeira} ${String(i).padStart(2, '0')}/${String(novoLancamento.parcelas).padStart(2, '0')}`,
             valor_liquido: parseFloat(valorLiquidoPorParcela.toFixed(2)),
-            tipo_pagamento: 'Parcelado',
             data_pagamento: dataRecebimento.toISOString().split('T')[0],
             status: novoLancamento.status
           };
 
           console.log(`Inserindo parcela ${i}/${novoLancamento.parcelas} (sem ID):`, lancamento);
           
-          // Tentar upsert para evitar conflito de chave primária
+          // Inserir diretamente sem especificar ID
           const { data, error } = await supabase
             .from('cartao_lancamentos')
-            .upsert([lancamento], { 
-              onConflict: 'id',
-              ignoreDuplicates: false 
-            })
+            .insert([lancamento])
             .select();
 
           if (error) {
-            console.error(`Erro ao fazer upsert da parcela ${i}:`, error);
-            
-            // Se ainda der erro, tentar inserção com timestamp único
-            const lancamentoComTimestamp = {
-              ...lancamento,
-              estabelecimento: `${lancamento.estabelecimento}_${Date.now()}_${i}`
-            };
-            
-            console.log(`Tentando inserção da parcela ${i} com timestamp único...`);
-            
-            const { data: data2, error: error2 } = await supabase
-              .from('cartao_lancamentos')
-              .insert([lancamentoComTimestamp])
-              .select();
-
-            if (error2) {
-              console.error(`Erro na inserção da parcela ${i} com timestamp:`, error2);
-              throw error2;
-            }
-            
-            console.log(`Parcela ${i} inserida com timestamp único:`, data2);
-          } else {
-            console.log(`Parcela ${i} inserida/atualizada com sucesso:`, data);
+            console.error(`Erro ao inserir parcela ${i}:`, error);
+            throw error;
           }
           
           console.log(`Parcela ${i} inserida com sucesso:`, data);
